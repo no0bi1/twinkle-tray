@@ -150,8 +150,18 @@ Napi::Number GetWinLong(const Napi::CallbackInfo& info)
     return Napi::Number::New(info.Env(), static_cast<double>(result));
 }
 
+Napi::Boolean GetKeyStateNative(const Napi::CallbackInfo& info)
+{
+    if (info.Length() < 1 || !info[0].IsNumber()) {
+        return Napi::Boolean::New(info.Env(), false);
+    }
+    SHORT state = GetAsyncKeyState(info[0].As<Napi::Number>().Int32Value());
+    return Napi::Boolean::New(info.Env(), (state & 0x8000) != 0);
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
+    exports.Set("getKeyState", Napi::Function::New(env, GetKeyStateNative));
     exports.Set("setWindowPos", Napi::Function::New(env, SetWindowPosition));
     exports.Set("getWindowPos", Napi::Function::New(env, GetWindowPosition));
     exports.Set("getClientPos", Napi::Function::New(env, GetClientPosition));
