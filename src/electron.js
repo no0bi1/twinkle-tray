@@ -720,6 +720,47 @@ function applyNativeBrightnessKeys() {
   return nativeBrightnessKeysRegistered
 }
 
+const WHEEL_ACCELERATORS = ["WheelUp", "WheelDown"]
+
+function isWheelAccelerator(accelerator) {
+  if(typeof accelerator !== "string") return false;
+  return WHEEL_ACCELERATORS.includes(accelerator.split("+").pop())
+}
+
+function wheelHotkeysExist() {
+  return !!settings.hotkeys?.some?.(hotkey => isWheelAccelerator(hotkey?.accelerator))
+}
+
+function getHeldModifiers() {
+  const down = vk => { try { return !!WindowUtils.getKeyState(vk) } catch(e) { return false } }
+  const mods = []
+  if(down(0x11)) mods.push("Ctrl")
+  if(down(0x12)) mods.push("Alt")
+  if(down(0x10)) mods.push("Shift")
+  if(down(0x5B) || down(0x5C)) mods.push("Super")
+  return mods
+}
+
+function sameModifiers(a, b) {
+  return a.length === b.length && a.every(m => b.includes(m))
+}
+
+function triggerWheelHotkey(delta) {
+  if(!delta) return false;
+  const mods = getHeldModifiers()
+  if(!mods.length) return false;
+  const direction = delta > 0 ? "WheelUp" : "WheelDown"
+  const hotkey = settings.hotkeys?.find?.(item => {
+    if(!isWheelAccelerator(item?.accelerator)) return false;
+    const parts = item.accelerator.split("+")
+    return parts.pop() === direction && sameModifiers(parts, mods)
+  })
+  if(!hotkey) return false;
+  doHotkey(hotkey)
+  return true
+}
+
+
 function enableMouseEvents() {
   if (mouseEventsActive || settings.disableMouseEvents) return false;
   mouseEventsActive = true;
@@ -727,6 +768,12 @@ function enableMouseEvents() {
   try {
     mouseEvents = require("global-mouse-events");
     mouseEvents.on('mousewheel', event => {
+      try {
+        if (triggerWheelHotkey(event.delta)) return false;
+      } catch (e) {
+        console.error(e)
+      }
+
       if (!settings.scrollShortcut) return false;
       try {
         if (!bounds) return false;
@@ -787,6 +834,7 @@ function pauseMouseEvents(paused) {
   if (willPauseMouseEventsTimeout) clearTimeout(willPauseMouseEventsTimeout);
 
   if (paused) {
+    if (wheelHotkeysExist()) return;
     if (mouseEvents && !mouseEvents.getPaused()) {
       console.log("Pausing mouse events...")
       mouseEvents.pauseMouseEvents()
@@ -1812,6 +1860,8 @@ function applyHotkeys(monitorList = monitors) {
             if(Object.values(nativeBrightnessAccelerators).includes(hotkey.accelerator)) {
               hotkey.active = nativeBrightnessKeysRegistered && !claimedNativeAccelerators.has(hotkey.accelerator)
               claimedNativeAccelerators.add(hotkey.accelerator)
+            } else if(isWheelAccelerator(hotkey.accelerator)) {
+              hotkey.active = !settings.disableMouseEvents
             } else {
               hotkey.active = globalShortcut.register(hotkey.accelerator, () => {
                 doHotkey(hotkey)
@@ -1826,6 +1876,10 @@ function applyHotkeys(monitorList = monitors) {
     }
   } catch(e) {
     console.log("Couldn't apply hotkeys:", e)
+  }
+  if(wheelHotkeysExist() && !settings.disableMouseEvents) {
+    enableMouseEvents()
+    pauseMouseEvents(false)
   }
   sendToAllWindows('settings-updated', settings)
 }
