@@ -784,7 +784,20 @@ export default class SettingsWindow extends PureComponent {
                                 }
                                 return false
                             }
-                        } onKeyUp={(e) => { delete this.downKeys[cleanUpKeyboardKeys(e.key, e.keyCode)] }} />
+                        } onKeyUp={(e) => { delete this.downKeys[cleanUpKeyboardKeys(e.key, e.keyCode)] }}
+                        onWheel={(e) => {
+                            const mods = []
+                            if (e.ctrlKey) mods.push("Ctrl")
+                            if (e.altKey) mods.push("Alt")
+                            if (e.shiftKey) mods.push("Shift")
+                            if (e.metaKey) mods.push("Super")
+                            if (!mods.length) return;
+                            const delta = e.deltaY || e.deltaX // Shift+wheel arrives as deltaX
+                            if (!delta) return;
+                            this.downKeys = {}
+                            hotkey.accelerator = [...mods, delta < 0 ? "WheelUp" : "WheelDown"].join('+')
+                            this.updateHotkey(hotkey, idx);
+                        }} />
                         <input type="button" value={T.t("GENERIC_CLEAR")} onClick={() => {
                             this.downKeys = {}
                             hotkey.accelerator = ""
