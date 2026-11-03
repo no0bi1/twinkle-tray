@@ -776,6 +776,7 @@ export default class SettingsWindow extends PureComponent {
                         }} onKeyDown={
                             (e) => {
                                 e.preventDefault()
+                                if (e.repeat) return false
                                 let key = cleanUpKeyboardKeys(e.key, e.keyCode)
                                 if (this.downKeys[key] === undefined) {
                                     this.downKeys[key] = true;
@@ -794,7 +795,6 @@ export default class SettingsWindow extends PureComponent {
                             if (!mods.length) return;
                             const delta = e.deltaY || e.deltaX // Shift+wheel arrives as deltaX
                             if (!delta) return;
-                            this.downKeys = {}
                             hotkey.accelerator = [...mods, delta < 0 ? "WheelUp" : "WheelDown"].join('+')
                             this.updateHotkey(hotkey, idx);
                         }} />
